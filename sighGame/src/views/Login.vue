@@ -3,36 +3,45 @@
     <div class="container-form">
       <div id="message">{{ message }}</div>
       <h1>LOGIN SIGHGAME</h1>
-      <h3>Jogo para reabilitação respiratória infantil</h3>
+      <h3>Jogo Para Reabilitação Respiratória Infantil</h3>
 
       <form @submit.prevent="enviarDadosLogin">
-        <input type="text" v-model="matricula" placeholder="Matrícula" required/>
-
-        <input type="password" v-model="senha" placeholder="Senha" required/>
-
+        <input type="text" v-model="matricula" placeholder="Email" required />
+        <input type="password" v-model="senha" placeholder="Senha" required />
         <button type="submit">ENTRAR</button>
       </form>
-
-      
     </div>
   </div>
 </template>
 
 <script>
-//
+export default {
+  data() {
+    return {
+      matricula: '',
+      senha: '',
+      message: '',
+    }
+  },
+  methods: {
+    enviarDadosLogin() {
+      // lógica de login
+    },
+  },
+}
 </script>
 
 <style scoped>
-/* Seu CSS está perfeito, mantive o mesmo */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
 .container {
-  background-image: url(../assets/login00.png);
+  --primary-color: #72127c;
+  --primary-hover: #480345;
+  --text-dark: #333;
+  --text-muted: #555;
+  --bg-form: rgba(255, 255, 255, 0.8);
+  --box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+  --input-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+
+  background-image: url(../assets/fundoLogin.png);
   background-size: cover;
   background-repeat: no-repeat;
   background-attachment: fixed;
@@ -41,28 +50,30 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .container-form {
   width: 90%;
   max-width: 400px;
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: var(--bg-form);
   padding: 30px;
   border-radius: 15px;
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--box-shadow);
   text-align: center;
 }
 
 .container h1 {
   margin-bottom: 10px;
   font-size: 2em;
-  color: #333;
+  color: var(--text-dark);
 }
 
 .container h3 {
   margin-bottom: 20px;
   font-weight: normal;
-  color: #555;
+  font-size: 18px;
+  color: var(--text-muted);
 }
 
 form input {
@@ -71,13 +82,13 @@ form input {
   margin-bottom: 15px;
   border: none;
   border-radius: 8px;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--input-shadow);
 }
 
 form button {
   width: 100%;
   padding: 10px;
-  background-color: #72127c;
+  background-color: var(--primary-color);
   color: white;
   border: none;
   border-radius: 8px;
@@ -89,16 +100,16 @@ form button {
 }
 
 form button:hover {
-  background-color: #480345;
+  background-color: var(--primary-hover);
 }
 
 form p {
   margin-top: 10px;
-  color: #333;
+  color: var(--text-dark);
 }
 
 form a {
-  color: #72127c;
+  color: var(--primary-color);
   text-decoration: none;
   font-weight: bold;
 }
