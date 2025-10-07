@@ -55,102 +55,55 @@
 
 <script>
 import Chart from 'chart.js/auto';
+import { ref as dbRef, get } from "firebase/database";
+import { database } from '../firebase';
+
 export default {
-  
   name: "PerfilUsuario",
   data() {
     return {
       fisioterapeuta: {
-        nome: "Bruna Dantas",
-        idade: 30,
-        tipoUsuario: "Fisioterapeuta",
-        cpf: "12345678901",
+        id: localStorage.getItem('usuario') ? JSON.parse(localStorage.getItem('usuario')).id : '',
+        nome: localStorage.getItem('usuario') ? JSON.parse(localStorage.getItem('usuario')).nome : 'Fisioterapeuta',
+        tipoUsuario: localStorage.getItem('usuario') ? JSON.parse(localStorage.getItem('usuario')).tipo : 'Fisioterapeuta',
+        cpf: localStorage.getItem('usuario') ? JSON.parse(localStorage.getItem('usuario')).cpf : '',
         foto: ""
       },
-      pacientes: [
-        {
-          nome: "Maria Oliveira",
-          idade: 8,
-          tipoUsuario: "Paciente",
-          foto: "https://via.placeholder.com/80",
-          cpf: "98765432100"
-        },
-        {
-          nome: "Pedro Santos",
-          idade: 10,
-          tipoUsuario: "Paciente",
-          foto: "https://via.placeholder.com/80",
-          cpf: "12345678900"
-        },
-        {
-          nome: "Ana Costa",
-          idade: 9,
-          tipoUsuario: "Paciente",
-          foto: "https://via.placeholder.com/80",
-          cpf: "11223344556"
-        },
-        {
-          nome: "Lucas Almeida",
-          idade: 7,
-          tipoUsuario: "Paciente",
-          foto: "https://via.placeholder.com/80",
-          cpf: "99887766554"
-        },
-        {
-          nome: "Sofia Lima",
-          idade: 6,
-          tipoUsuario: "Paciente",
-          foto: "https://via.placeholder.com/80",
-          cpf: "55667788990"
-        },  
-        {
-          nome: "Gabriel Rocha",
-          idade: 11,
-          tipoUsuario: "Paciente",
-          foto: "https://via.placeholder.com/80",
-          cpf: "44332211000"
-        },
-        {
-          nome: "Isabela Martins",
-          idade: 5,
-          tipoUsuario: "Paciente",
-          foto: "https://via.placeholder.com/80",
-          cpf: "22334455667"
-        },
-        {
-          nome: "Rafael Pereira",
-          idade: 12,
-          tipoUsuario: "Paciente",
-          foto: "https://via.placeholder.com/80",
-          cpf: "66778899001"
-        },
-        {
-          nome: "Laura Souza",
-          idade: 4,
-          tipoUsuario: "Paciente",
-          foto: "https://via.placeholder.com/80",
-          cpf: "33445566778"
-        },
-        {
-          nome: "Matheus Silva",
-          idade: 3,
-          tipoUsuario: "Paciente",
-          foto: "https://via.placeholder.com/80",
-          cpf: "77889900112"
-        }
-      ],
+      pacientes: [],
       pacienteSelecionado: null,
     };
   },
-  created() {
-    //
+  mounted() {
+    this.carregarPacientes();
   },
   methods: {
+    async carregarPacientes() {
+      const usuariosRef = dbRef(database, 'usuarios');
+      console.log(this.fisioterapeuta.id);
+      try {
+        const snapshot = await get(usuariosRef);
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          
+           
+          // Filtra pacientes que têm o fisioterapeutaId igual ao fisioterapeuta logado
+          this.pacientes = Object.entries(data)
+            .map(([id, dados]) => ({ id, ...dados }))
+            .filter(u => u.tipo === "paciente" && u.fisioterapeutaId === this.fisioterapeuta.id);
+
+          console.log("Pacientes carregados:", this.pacientes);
+        } else {
+          console.log("Nenhum paciente encontrado.");
+        }
+      } catch (error) {
+        console.error("Erro ao buscar pacientes:", error);
+      }
+    },
     selecionarPaciente(paciente) {
       this.pacienteSelecionado = paciente;
       this.$nextTick(() => {
         this.criarGrafico();
-     });
+      });
     },
     criarGrafico() {
       const ctx = document.getElementById('graficoScore');
@@ -162,7 +115,7 @@ export default {
           labels: Array.from({ length: 10 }, (_, i) => `Sessão ${i + 1}`),
           datasets: [{
             label: 'Score do Paciente',
-            data: [60, 65, 70, 68, 72, 75, 78, 80, 85, 90],
+            data: [60, 64, 70, 68, 72, 75, 78, 80, 85, 90], // 🔥 aqui depois dá pra puxar do Firebase tbm
             backgroundColor: 'rgba(114, 18, 124, 0.2)',
             borderColor: 'rgba(114, 18, 124, 1)',
             borderWidth: 2,
@@ -180,11 +133,10 @@ export default {
         }
       });
     }
-
   },
 };
-
 </script>
+
 
 <style scoped>
 .container {

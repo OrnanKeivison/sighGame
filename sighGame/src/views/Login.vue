@@ -15,6 +15,10 @@
 </template>
 
 <script>
+import { auth, database } from '../firebase'; // ajuste o caminho
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { ref, get } from "firebase/database";
+
 export default {
   data() {
     return {
@@ -24,8 +28,37 @@ export default {
     }
   },
   methods: {
-    enviarDadosLogin() {
-      // lógica de login
+    async enviarDadosLogin() {
+      try {
+        // Autenticar com Firebase Auth
+        const userCredential = await signInWithEmailAndPassword(auth, this.matricula, this.senha);
+        const user = userCredential.user;
+
+        // Pegar os dados no Realtime Database usando UID
+        const userRef = ref(database, 'usuarios/' + user.uid);
+        const snapshot = await get(userRef);
+
+        if (snapshot.exists()) {
+          const dadosUsuario = snapshot.val();
+          this.message = `Bem-vindo(a), ${dadosUsuario.nome || 'usuário'}!`;
+
+          // Aqui você pode salvar dados no localStorage, redirecionar, etc
+          localStorage.setItem('usuario', JSON.stringify(dadosUsuario));
+          this.$router.push('/Dashboard'); // Redireciona para o Dashboard
+        } else {
+          this.message = "Usuário autenticado, mas dados não encontrados no banco.";
+        }
+
+      } catch (error) {
+        console.error("Erro de login:", error);
+        if (error.code === 'auth/wrong-password') {
+          this.message = "Senha incorreta.";
+        } else if (error.code === 'auth/user-not-found') {
+          this.message = "Usuário não encontrado.";
+        } else {
+          this.message = "Erro ao fazer login.";
+        }
+      }
     },
   },
 }
