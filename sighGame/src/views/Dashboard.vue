@@ -3,30 +3,37 @@
 
     <aside class="sidebar">
       <nav>
-      <div class="logo">
-        <i v-if="!fisioterapeuta.foto" class="fa-solid fa-circle-user"></i>
-        <img v-else :src="fisioterapeuta.foto" alt="Foto do Fisioterapeuta" />
+        <div class="logo">
+          <i v-if="!fisioterapeuta.foto" class="fa-solid fa-circle-user"></i>
+          <img v-else :src="fisioterapeuta.foto" alt="Foto do Fisioterapeuta" />
 
-        <div class="name-logo">
-          <h1>{{ fisioterapeuta.nome }}</h1>
-          <h4>{{ fisioterapeuta.tipoUsuario }}</h4>
+          <div class="name-logo">
+            <h1>{{ fisioterapeuta.nome }}</h1>
+            <h4>{{ fisioterapeuta.tipoUsuario }}</h4>
+          </div>
         </div>
-      </div>
 
-      <div class="title">
-        <h1>Seus Pacientes:</h1>
-      </div>
-      
-      <div class="pacientes">
-        <div v-for="(paciente, index) in pacientes" 
-     :key="index" 
-     class="paciente" 
-     :class="{ ativo: pacienteSelecionado && pacienteSelecionado.cpf === paciente.cpf }" 
-     @click="selecionarPaciente(paciente)"> <i class="fa-solid fa-circle-user"></i> <p>{{ paciente.nome }}</p> </div>
-      </div>
-
+        <div class="title">
+          <h1>Seus Pacientes:</h1>
+        </div>
+        
+        <div class="pacientes">
+          <div 
+            v-for="(paciente, index) in pacientes" 
+            :key="index" 
+            class="paciente" 
+            :class="{ ativo: pacienteSelecionado && pacienteSelecionado.cpf === paciente.cpf }" 
+            @click="selecionarPaciente(paciente)"
+          >
+            <i class="fa-solid fa-circle-user"></i> 
+            <p>{{ paciente.nome }}</p>
+          </div>
+        </div>
       </nav>
-      <button class="logout"> <i class="fa-solid fa-right-from-bracket"></i> LOG OUT</button>
+
+      <button class="logout"> 
+        <i class="fa-solid fa-right-from-bracket"></i> LOG OUT
+      </button>
     </aside>
 
     <main class="main">
@@ -36,9 +43,38 @@
 
       <section class="Dashboard">
         <div class="dashboard-content">
-          <div class="grafico-card">
-            <canvas id="graficoScore"></canvas>
+          <div class="graficos">
+
+            <!-- GRÁFICO SCORE -->
+            <div class="grafico-card">
+              <div class="grafico-header">
+                <h3>Gráfico de Pontuação</h3>
+                <i class="fa-solid fa-up-right-and-down-left-from-center" 
+                  @click="abrirFullscreen('graficoScore')" title="Expandir"></i>
+              </div>
+              <canvas id="graficoScore"></canvas>
+            </div>
+
+            <!-- GRÁFICO DE DISTÂNCIA -->
+            <div class="grafico-card">
+              <div class="grafico-header">
+                <h3>Gráfico de Distância</h3>
+                <i class="fa-solid fa-up-right-and-down-left-from-center" 
+                  @click="abrirFullscreen('graficoDistancia')" title="Expandir"></i>
+              </div>
+              <canvas id="graficoDistancia"></canvas>
+            </div>
+
+            <!-- MODAL DE TELA CHEIA -->
+            <div v-if="fullscreenGrafico" class="fullscreen-overlay" @click.self="fecharFullscreen">
+              <div class="fullscreen-content">
+                <i class="fa-solid fa-down-left-and-up-right-to-center fechar" @click="fecharFullscreen"></i>
+                <canvas :id="fullscreenGrafico + '_fullscreen'"></canvas>
+              </div>
+            </div>
           </div>
+
+          <!-- CARD DE INFORMAÇÕES -->
           <div class="info-card" v-if="pacienteSelecionado">
             <h1>INFORMAÇÕES DO PACIENTE:</h1>
             <i class="fa-solid fa-circle-user"></i>
@@ -48,7 +84,6 @@
           </div>
         </div>
       </section>
-
     </main>
   </div>
 </template>
@@ -71,6 +106,9 @@ export default {
       },
       pacientes: [],
       pacienteSelecionado: null,
+      chartScore: null,
+      chartDistancia: null,
+      fullscreenGrafico: null
     };
   },
   mounted() {
@@ -79,19 +117,13 @@ export default {
   methods: {
     async carregarPacientes() {
       const usuariosRef = dbRef(database, 'usuarios');
-      console.log(this.fisioterapeuta.id);
       try {
         const snapshot = await get(usuariosRef);
         if (snapshot.exists()) {
           const data = snapshot.val();
-          
-           
-          // Filtra pacientes que têm o fisioterapeutaId igual ao fisioterapeuta logado
           this.pacientes = Object.entries(data)
             .map(([id, dados]) => ({ id, ...dados }))
             .filter(u => u.tipo === "paciente" && u.fisioterapeutaId === this.fisioterapeuta.id);
-
-          console.log("Pacientes carregados:", this.pacientes);
         } else {
           console.log("Nenhum paciente encontrado.");
         }
@@ -102,41 +134,101 @@ export default {
     selecionarPaciente(paciente) {
       this.pacienteSelecionado = paciente;
       this.$nextTick(() => {
-        this.criarGrafico();
+        this.criarGraficos();
       });
     },
-    criarGrafico() {
-      const ctx = document.getElementById('graficoScore');
-      if (!ctx) return;
+    async criarGraficos() {
+      const ctxScore = document.getElementById('graficoScore');
+      const ctxDistancia = document.getElementById('graficoDistancia');
+      if (!ctxScore || !ctxDistancia) return;
 
-      new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: Array.from({ length: 10 }, (_, i) => `Sessão ${i + 1}`),
-          datasets: [{
-            label: 'Score do Paciente',
-            data: [60, 64, 70, 68, 72, 75, 78, 80, 85, 90], // 🔥 aqui depois dá pra puxar do Firebase tbm
-            backgroundColor: 'rgba(114, 18, 124, 0.2)',
-            borderColor: 'rgba(114, 18, 124, 1)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.4
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: {
-              display: true
+      if (this.chartScore) this.chartScore.destroy();
+      if (this.chartDistancia) this.chartDistancia.destroy();
+
+      const sessoesRef = dbRef(database, `usuarios/${this.pacienteSelecionado.id}/sessoes`);
+
+      try {
+        const snapshot = await get(sessoesRef);
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          const sessoes = Object.entries(data)
+            .map(([id, dados]) => ({ id, ...dados }))
+            .sort((a, b) => new Date(a.data) - new Date(b.data));
+
+          const labels = sessoes.map((s, i) => s.nomeSessao || `Sessão ${i + 1}`);
+          const scores = sessoes.map(s => s.pontos || 0);
+          const distancias = sessoes.map(s => s.maiorDistancia || 0);
+
+          this.chartScore = new Chart(ctxScore, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [{
+                label: 'Pontuação por Sessão',
+                data: scores,
+                backgroundColor: 'rgba(114, 18, 124, 0.2)',
+                borderColor: 'rgba(114, 18, 124, 1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: { legend: { display: true } },
+              scales: { y: { beginAtZero: true } }
             }
-          }
+          });
+
+          this.chartDistancia = new Chart(ctxDistancia, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [{
+                label: 'Distância por Sessão',
+                data: distancias,
+                backgroundColor: 'rgba(44, 7, 78, 0.2)',
+                borderColor: 'rgba(44, 7, 78, 1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: { legend: { display: true } },
+              scales: { y: { beginAtZero: true } }
+            }
+          });
+        } else {
+          console.log("Nenhum dado de sessão encontrado para o paciente.");
         }
+      } catch (error) {
+        console.error("Erro ao buscar sessões:", error);
+      }
+    },
+    abrirFullscreen(tipo) {
+      this.fullscreenGrafico = tipo;
+      this.$nextTick(() => {
+        const originalChart = tipo === 'graficoScore' ? this.chartScore : this.chartDistancia;
+        const ctx = document.getElementById(tipo + '_fullscreen');
+        new Chart(ctx, {
+          type: originalChart.config.type,
+          data: originalChart.config.data,
+          options: {
+            ...originalChart.config.options,
+            plugins: { legend: { display: true } },
+            maintainAspectRatio: false
+          }
+        });
       });
+    },
+    fecharFullscreen() {
+      this.fullscreenGrafico = null;
     }
-  },
+  }
 };
 </script>
-
 
 <style scoped>
 .container {
@@ -155,55 +247,49 @@ export default {
   background: rgba(240, 242, 245, 1);
 }
 
+/* Sidebar */
 .sidebar {
   display: flex;
   justify-content: space-between;
   flex-direction: column;
-  /* background: var(--primary-color); */
   background: linear-gradient(rgba(45, 2, 87, 0.4), rgba(63, 8, 83, 0.4)),
               url('../assets/banner.png');
   color: white;
   padding: 1rem;
   border-radius: 15px;
-  margin:  1rem 0 1rem 1rem;
+  margin: 1rem 0 1rem 1rem;
 }
 
-/* SIDEBAR LOGO */
-.sidebar .logo{
+.sidebar .logo {
   display: flex;
   align-items: center;
   justify-content: center;
   padding-bottom: 15px;
-  padding-right: 10px;
-  /* border-radius: 15px; */
   border-bottom: 1px solid var(--bg-form);
-
 }
 
 .sidebar .logo i {
   font-size: 60px;
   margin-right: 15px;
-  margin-left: 10px;
 }
 
 .sidebar .logo img {
   width: 80px;
   height: 80px;
+  border-radius: 50%;
 }
 
-.sidebar .logo .name-logo h1{
+.sidebar .name-logo h1 {
   font-size: 1.8rem;
   margin: 0;
-  padding: 0;
 }
 
-.sidebar .logo .name-logo h4 {
+.sidebar .name-logo h4 {
   font-size: 0.8rem;
-  margin: 0;
-  padding: 0; 
+  margin: 0; 
 }
 
-.title{
+.title {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -211,32 +297,7 @@ export default {
   border-bottom: 1px solid var(--bg-form);
 }
 
-/* NAV BAR */
-.sidebar nav {
-  display: flex;
-  flex-direction: column;
-  margin-top: 5px;
-}
-
-.sidebar nav .paciente p {
-  font-weight: 300;
-}
-
-.sidebar nav .paciente{
-  display: flex;
-  align-items: center;
-  color: white;
-  text-decoration: none;
-  margin-top: 10px;
-  border-radius: 3px;
-  margin-left: 0px;
-  padding: 20px;
-  font-weight: 600;
-  border-radius: 20px;
-  background-color:  #38115cc4;
-}
-
-.pacientes{
+.pacientes {
   margin-top: 10px;
   margin-bottom: 10px;
   height: 60vh;
@@ -247,40 +308,35 @@ export default {
 .pacientes::-webkit-scrollbar {
   width: 8px;  
 }
-
-.pacientes::-webkit-scrollbar-track {
-  background: transparent; /* remove o fundo branco */
-}
-
 .pacientes::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.3); /* cor da "alça" da barra */
+  background-color: rgba(0, 0, 0, 0.3);
   border-radius: 4px;
 }
 
-.pacientes::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0, 0, 0, 0.5);
+/* Pacientes */
+.sidebar nav .paciente {
+  display: flex;
+  align-items: center;
+  color: white;
+  margin-top: 10px;
+  border-radius: 20px;
+  padding: 20px;
+  background-color: #38115cc4;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .sidebar nav .paciente:hover {
-  background-color:  var(--primary-hover);
-  border-radius: 20px;
-  transition: background-color 0.3s ease;
-  color: white;
-}
-
-.sidebar .paciente i{
-  margin-right: 10px;
+  background-color: var(--primary-hover);
 }
 
 .ativo {
   background-color: var(--accent-color) !important;
   box-shadow: 0 0 8px rgba(0,0,0,0.3);
   transform: scale(1.02);
-  transition: all 0.2s ease;
 }
 
-
-/* BTN LOGOUT */
+/* Logout */
 .logout {
   padding: 20px;
   background-color: rgba(240, 242, 245, 1);
@@ -291,20 +347,19 @@ export default {
   font-size: 0.9rem;
 }
 
-.sidebar .logout:hover {
+.logout:hover {
   background-color: var(--accent-color);
   color: white;
-  transition: background-color 0.3s ease;
   cursor: pointer;
 }
 
-/* CARD INFO */
+/* Main content */
 .main {
   flex: 1;
   padding: 1rem;
 }
 
-.banner  img {
+.banner img {
   object-fit: cover;
   object-position: 0 30%;
   height: 170px;
@@ -312,35 +367,93 @@ export default {
   border-radius: 15px;
 }
 
+/* Dashboard */
 .dashboard-content {
-  margin-left: 20px;
-  margin-right: 20px;
+  margin: 0 20px;
   background-color: rgba(255, 255, 255, 0.92);
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   padding: 1rem;
   border-radius: 15px;
   position: relative;
   top: -50px;
-
   display: flex;
   gap: 20px;
+}
 
+/* Gráficos */
+.graficos {
+  display: flex;
+  flex-direction: column;
+  width: 70%;
+  height: 750px;
 }
 
 .grafico-card {
-  flex: 3;
+  flex: 1; 
   background-color: white;
   padding: 1rem;
   border-radius: 15px;
   box-shadow: var(--box-shadow);
+  margin-bottom: 1rem;
 }
 
-.info-card h1 {
-  margin: 0;
-  font-size: 1rem;
+.grafico-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: .5rem;
+}
+
+.grafico-header i {
+  cursor: pointer;
   color: var(--accent-color);
+  font-size: 1.1rem;
+  transition: transform 0.2s ease;
 }
 
+.grafico-header i:hover {
+  transform: scale(1.2);
+  color: var(--primary-hover);
+}
+
+/* Fullscreen */
+.fullscreen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.85);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.fullscreen-content {
+  position: relative;
+  width: 90%;
+  height: 85%;
+  background: white;
+  border-radius: 15px;
+  padding: 1rem;
+}
+
+.fullscreen-content .fechar {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  font-size: 1.5rem;
+  color: var(--accent-color);
+  cursor: pointer;
+}
+
+.fullscreen-content canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Info card */
 .info-card {
   flex: 1;
   background-color: white;
@@ -352,10 +465,14 @@ export default {
   align-items: center;
   text-align: center;
 }
+.info-card h1 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--accent-color);
+}
 .info-card i {
   font-size: 150px;
   color: var(--accent-color);
   margin: 20px;
 }
-
 </style>
