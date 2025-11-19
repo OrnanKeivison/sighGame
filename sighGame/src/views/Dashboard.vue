@@ -4,16 +4,16 @@
     <aside class="sidebar">
       <nav>
         <div class="logo">
-          <i v-if="!fisioterapeuta.foto" class="fa-solid fa-circle-user"></i>
-          <img v-else :src="fisioterapeuta.foto" alt="Foto do Fisioterapeuta" />
+          <i v-if="!usuario.foto" class="fa-solid fa-circle-user"></i>
+          <img v-else :src="usuario.foto" alt="Foto do Fisioterapeuta" />
 
           <div class="name-logo">
-            <h1>{{ fisioterapeuta.nome }}</h1>
-            <h4>{{ fisioterapeuta.tipoUsuario }}</h4>
+            <h1>{{ usuario.nome }}</h1>
+            <h4>{{ usuario.tipoUsuario }}</h4>
           </div>
         </div>
 
-        <div class="title">
+        <div v-if="usuario.tipoUsuario == 'fisioterapeuta'" class="title">
           <h1>Seus Pacientes:</h1>
         </div>
         
@@ -31,7 +31,7 @@
         </div>
       </nav>
 
-      <button class="logout"> 
+      <button class="logout" @click="logout"> 
         <i class="fa-solid fa-right-from-bracket"></i> LOG OUT
       </button>
     </aside>
@@ -41,7 +41,15 @@
         <img src="../assets/banner.png" alt="">
       </div>
 
-      <section class="Dashboard">
+      <section v-if="pacienteSelecionado == null && usuario.tipoUsuario == 'fisioterapeuta'" class="welcome">
+        <div>
+          <h1>Olá {{ usuario.nome }}!</h1>
+          <p>Selecione um paciente ao lado para visualizar os gráficos</p>
+        </div>
+        <img src="../assets/fisio.png" alt="paciente">
+      </section>
+
+      <section v-else class="Dashboard">
         <div class="dashboard-content">
           <div class="graficos">
 
@@ -79,7 +87,6 @@
             <h1>INFORMAÇÕES DO PACIENTE:</h1>
             <i class="fa-solid fa-circle-user"></i>
             <p><strong>Nome:</strong> {{ pacienteSelecionado.nome }}</p>
-            <p><strong>Idade:</strong> {{ pacienteSelecionado.idade }} anos</p>
             <p><strong>CPF:</strong> {{ pacienteSelecionado.cpf }}</p>
           </div>
         </div>
@@ -97,10 +104,10 @@ export default {
   name: "PerfilUsuario",
   data() {
     return {
-      fisioterapeuta: {
+      usuario: {
         id: localStorage.getItem('usuario') ? JSON.parse(localStorage.getItem('usuario')).id : '',
-        nome: localStorage.getItem('usuario') ? JSON.parse(localStorage.getItem('usuario')).nome : 'Fisioterapeuta',
-        tipoUsuario: localStorage.getItem('usuario') ? JSON.parse(localStorage.getItem('usuario')).tipo : 'Fisioterapeuta',
+        nome: localStorage.getItem('usuario') ? JSON.parse(localStorage.getItem('usuario')).nome : '',
+        tipoUsuario: localStorage.getItem('usuario') ? JSON.parse(localStorage.getItem('usuario')).tipo : '',
         cpf: localStorage.getItem('usuario') ? JSON.parse(localStorage.getItem('usuario')).cpf : '',
         foto: ""
       },
@@ -112,9 +119,22 @@ export default {
     };
   },
   mounted() {
-    this.carregarPacientes();
+    this.iniciar(this.usuario);
   },
   methods: {
+    logout() {
+      localStorage.removeItem('usuario');
+      this.$router.push('/');
+    },
+    async iniciar(usuario){
+      if(usuario.tipoUsuario == 'fisioterapeuta'){
+        this.carregarPacientes();
+      }
+      else{
+        this.selecionarPaciente(usuario)
+      }
+
+    },
     async carregarPacientes() {
       const usuariosRef = dbRef(database, 'usuarios');
       try {
@@ -123,7 +143,7 @@ export default {
           const data = snapshot.val();
           this.pacientes = Object.entries(data)
             .map(([id, dados]) => ({ id, ...dados }))
-            .filter(u => u.tipo === "paciente" && u.fisioterapeutaId === this.fisioterapeuta.id);
+            .filter(u => u.tipo === "paciente" && u.fisioterapeutaId === this.usuario.id);
         } else {
           console.log("Nenhum paciente encontrado.");
         }
@@ -230,6 +250,7 @@ export default {
 };
 </script>
 
+
 <style scoped>
 .container {
   --primary-color: #2c074e;
@@ -242,28 +263,30 @@ export default {
   --input-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
   
   display: flex;
+  width: 100vw;
   height: 100vh;
-  width: 100%;
+  overflow: hidden;
   background: rgba(240, 242, 245, 1);
 }
 
-/* Sidebar */
 .sidebar {
+  width: 270px;
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   flex-direction: column;
   background: linear-gradient(rgba(45, 2, 87, 0.4), rgba(63, 8, 83, 0.4)),
               url('../assets/banner.png');
+  background-size: cover;
+  background-position: center;
   color: white;
   padding: 1rem;
-  border-radius: 15px;
-  margin: 1rem 0 1rem 1rem;
 }
 
 .sidebar .logo {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: left;
   padding-bottom: 15px;
   border-bottom: 1px solid var(--bg-form);
 }
@@ -282,17 +305,19 @@ export default {
 .sidebar .name-logo h1 {
   font-size: 1.8rem;
   margin: 0;
+  padding: 0;
 }
 
 .sidebar .name-logo h4 {
   font-size: 0.8rem;
   margin: 0; 
+  padding: 0;
 }
 
+/* Pacientes */
 .title {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 10px;
+  text-align: center;
   padding: 10px;
   border-bottom: 1px solid var(--bg-form);
 }
@@ -308,19 +333,23 @@ export default {
 .pacientes::-webkit-scrollbar {
   width: 8px;  
 }
+
 .pacientes::-webkit-scrollbar-thumb {
   background-color: rgba(0, 0, 0, 0.3);
   border-radius: 4px;
 }
 
-/* Pacientes */
+.sidebar .paciente i{
+  margin-right: 10px;
+}
+
 .sidebar nav .paciente {
   display: flex;
   align-items: center;
   color: white;
   margin-top: 10px;
-  border-radius: 20px;
-  padding: 20px;
+  border-radius: 15px;
+  padding: 15px;
   background-color: #38115cc4;
   font-weight: 600;
   cursor: pointer;
@@ -346,36 +375,66 @@ export default {
   font-weight: bold;
   font-size: 0.9rem;
 }
-
 .logout:hover {
   background-color: var(--accent-color);
   color: white;
   cursor: pointer;
 }
 
-/* Main content */
-.main {
+
+/* Conteúdo principal (scroll só aqui) */
+
+.welcome {
   flex: 1;
+  margin: -40px 20px 0 20px;
+  background-color: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   padding: 1rem;
+  border-radius: 15px;
+  display: flex;
+  gap: 20px;
+  
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
+.welcome img {
+  width: 260px;
+  max-width: 80%;
+}
+
+.welcome h1 {
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.main { 
+  width: calc(100vw - 270px);
+  height: 100vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+  background: rgba(240, 242, 245, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Banner */
 .banner img {
-  object-fit: cover;
-  object-position: 0 30%;
-  height: 170px;
   width: 100%;
+  height: 220px;
+  object-fit: cover;
   border-radius: 15px;
 }
 
 /* Dashboard */
 .dashboard-content {
-  margin: 0 20px;
+  flex: 1;
+  margin: -40px 20px 0 20px;
   background-color: rgba(255, 255, 255, 0.92);
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   padding: 1rem;
   border-radius: 15px;
-  position: relative;
-  top: -50px;
   display: flex;
   gap: 20px;
 }
@@ -448,12 +507,7 @@ export default {
   cursor: pointer;
 }
 
-.fullscreen-content canvas {
-  width: 100% !important;
-  height: 100% !important;
-}
-
-/* Info card */
+/* Card do paciente */
 .info-card {
   flex: 1;
   background-color: white;
@@ -476,3 +530,4 @@ export default {
   margin: 20px;
 }
 </style>
+
