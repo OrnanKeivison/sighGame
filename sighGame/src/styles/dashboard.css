@@ -185,7 +185,7 @@
   border-radius: 1rem;
 }
 
-/* Dashboard */
+/* -=-=-=-= DASHBOARD -=-=-=-= */
 .graficos-lado {
   display: flex;
   width: 100%;
@@ -208,21 +208,14 @@
   background-color: rgba(255, 255, 255, 0.92);
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   padding: 1rem;
-  border-radius: 15px;
+  border-radius: 1rem;
 }
 
-/* Gráficos */
-.graficos {
-  display: flex;
-  flex-direction: column;
-  width: 70%;
-  height: 750px;
-} 
-
+/* -=-=-=-= GRAFICOS -=-=-=-= */
 .grafico-card {
   background-color: white;
   padding: 1rem;
-  border-radius: 15px;
+  border-radius: 1rem;
   box-shadow: var(--box-shadow);
 }
 
@@ -230,7 +223,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: .5rem;
+  margin-bottom: 1rem;
 }
 
 .grafico-header i {
@@ -245,7 +238,7 @@
   color: var(--primary-hover);
 }
 
-/* Fullscreen */
+/* -=-=-=-= GRAFICOS FULLSCREEN -=-=-=-= */
 .fullscreen-overlay {
   position: fixed;
   top: 0;
@@ -253,7 +246,7 @@
   width: 100vw;
   height: 100vh;
   background: rgba(0,0,0,0.85);
-  z-index: 9999;
+  z-index: 1;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -264,24 +257,24 @@
   width: 90%;
   height: 85%;
   background: white;
-  border-radius: 15px;
+  border-radius: 1rem;
   padding: 1rem;
 }
 
 .fullscreen-content .fechar {
   position: absolute;
-  top: 15px;
-  right: 15px;
+  top: 1rem;
+  right: 1rem;
   font-size: 1.5rem;
   color: var(--accent-color);
   cursor: pointer;
 }
 
-/* Card do paciente */
+/* -=-=-=-= CARD DE INFORMAÇÃO -=-=-=-= */
 .info-card {
   background-color: white;
   padding: 0.5rem;
-  border-radius: 15px;
+  border-radius: 1rem;
   box-shadow: var(--box-shadow);
   display: flex;
   align-items: center;
@@ -290,17 +283,31 @@
   
 }
 .info-card h1 {
-  margin: 0;
-  font-size: 0.8rem;
+  margin-bottom: 0.3rem;
+  font-size: 0.9rem;
   color: var(--accent-color);
 }
 
-.info-card .info-paciente{
+#info{
   text-align: left;
 }
 
+#info p{
+  font-size: 0.8rem;
+}
+
+#dist p, #score p{
+  font-size: 1rem;
+  background-color: var(--accent-color);
+  padding: 0.5rem;
+  border-radius: 1rem;
+  color: white;
+  font-weight: bold;
+
+}
+
 .info-card i {
-  font-size: 60px;
+  font-size: 3rem;
   color: var(--accent-color);
-  margin: 10px;
+  margin: 1.5rem 1rem 1.5rem 1.5rem;
 }

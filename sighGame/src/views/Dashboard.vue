@@ -59,14 +59,14 @@
                 <i class="fa-solid fa-circle-user"></i>
               </div>
 
-              <div class="info-paciente">
+              <div class="info-paciente" id="info">
                 <h1>INFORMAÇÕES DO PACIENTE:</h1>
                 <p><strong>Nome:</strong> {{ pacienteSelecionado.nome }}</p>
                 <p><strong>CPF:</strong> {{ pacienteSelecionado.cpf }}</p>
               </div>
             </div>
 
-            <div class="info-card" v-if="pacienteSelecionado">
+            <div class="info-card" id="dist" v-if="pacienteSelecionado">
               <div class="img">
                 <i class="fa-solid fa-trophy"></i>
               </div>
@@ -77,7 +77,7 @@
               </div>
             </div>
 
-            <div class="info-card" v-if="pacienteSelecionado">
+            <div class="info-card" id="score" v-if="pacienteSelecionado">
               <div class="img">
                 <i class="fa-solid fa-medal"></i>
               </div>
@@ -129,201 +129,148 @@
 </template>
 
 <script>
-import Chart from 'chart.js/auto';
+import Chart from "chart.js/auto";
 import { ref as dbRef, get } from "firebase/database";
-import { database } from '../firebase';
+import { database } from "../firebase";
 
 export default {
   name: "PerfilUsuario",
+
   data() {
+    const usuarioLocal = localStorage.getItem("usuario")
+      ? JSON.parse(localStorage.getItem("usuario"))
+      : {};
+
     return {
       usuario: {
-        id: localStorage.getItem('usuario') ? JSON.parse(localStorage.getItem('usuario')).id : '',
-        nome: localStorage.getItem('usuario') ? JSON.parse(localStorage.getItem('usuario')).nome : '',
-        tipoUsuario: localStorage.getItem('usuario') ? JSON.parse(localStorage.getItem('usuario')).tipo : '',
-        cpf: localStorage.getItem('usuario') ? JSON.parse(localStorage.getItem('usuario')).cpf : '',
-        foto: ''
+        id: usuarioLocal.id || "",
+        nome: usuarioLocal.nome || "",
+        tipoUsuario: usuarioLocal.tipo || "",
+        cpf: usuarioLocal.cpf || "",
+        foto: ""
       },
-      todasSessoes: [],
-      maxPontos: '',
-      maxDistancia: '',
+
       pacientes: [],
       pacienteSelecionado: null,
+
+      todasSessoes: [],
+      maxPontos: "",
+      maxDistancia: "",
+
       chartScore: null,
       chartDistancia: null,
       fullscreenGrafico: null
     };
   },
+
   mounted() {
     this.iniciar(this.usuario);
   },
+
   methods: {
     logout() {
-      localStorage.removeItem('usuario');
-      this.$router.push('/');
+      localStorage.removeItem("usuario");
+      this.$router.push("/");
     },
-    async iniciar(usuario){
-      if(usuario.tipoUsuario == 'fisioterapeuta'){
-        this.carregarPacientes();
-      }
-      else{
-        this.selecionarPaciente(usuario)
-      }
 
+    async iniciar(usuario) {
+      usuario.tipoUsuario === "fisioterapeuta"
+        ? this.carregarPacientes()
+        : this.selecionarPaciente(usuario);
     },
+
     async carregarPacientes() {
-      const usuariosRef = dbRef(database, 'usuarios');
+      const usuariosRef = dbRef(database, "usuarios");
+
       try {
         const snapshot = await get(usuariosRef);
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          this.pacientes = Object.entries(data)
-            .map(([id, dados]) => ({ id, ...dados }))
-            .filter(u => u.tipo === "paciente" && u.fisioterapeutaId === this.usuario.id);
-        } else {
+
+        if (!snapshot.exists()) {
           console.log("Nenhum paciente encontrado.");
+          return;
         }
+
+        const data = snapshot.val();
+        this.pacientes = Object.entries(data)
+          .map(([id, dados]) => ({ id, ...dados }))
+          .filter(
+            (p) =>
+              p.tipo === "paciente" &&
+              p.fisioterapeutaId === this.usuario.id
+          );
+
       } catch (error) {
         console.error("Erro ao buscar pacientes:", error);
       }
     },
+
     selecionarPaciente(paciente) {
       this.pacienteSelecionado = paciente;
-      this.$nextTick(() => {
-        this.criarGraficos();
-      });
+      this.$nextTick(() => this.criarGraficos());
     },
+
     async criarGraficos() {
-      const ctxScore = document.getElementById('graficoScore');
-      const ctxDistancia = document.getElementById('graficoDistancia');
+      const ctxScore = document.getElementById("graficoScore");
+      const ctxDistancia = document.getElementById("graficoDistancia");
       if (!ctxScore || !ctxDistancia) return;
 
-      if (this.chartScore) this.chartScore.destroy();
-      if (this.chartDistancia) this.chartDistancia.destroy();
+      this.chartScore?.destroy();
+      this.chartDistancia?.destroy();
 
-      const sessoesRef = dbRef(database, `usuarios/${this.pacienteSelecionado.id}/sessoes`);
-      
+      const sessoesRef = dbRef(
+        database,
+        `usuarios/${this.pacienteSelecionado.id}/sessoes`
+      );
 
       try {
         const snapshot = await get(sessoesRef);
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          const sessoes = Object.entries(data)
-            .map(([id, dados]) => ({ id, ...dados }))
-            .sort((a, b) => new Date(a.data) - new Date(b.data));
-
-          this.todasSessoes = sessoes;
-          this.maxPontos = Math.max(...sessoes.map(s => s.pontos || 0));
-          this.maxDistancia = Math.max(...sessoes.map(s => s.maiorDistancia || 0));
-
-          const sessoesFiltradas = sessoes.length > 5 ? sessoes.slice(-5) : sessoes;
-
-          const labels = sessoesFiltradas.map(s => {
-            
-            if (!s.dataHora) return "Sem data";
-
-            const [data] = s.dataHora.split(" "); 
-            const [ano, mes, dia] = data.split("-");
-
-            const meses = [
-              "jan", "fev", "mar", "abr", "mai", "jun",
-              "jul", "ago", "set", "out", "nov", "dez"
-            ];
-
-            return `${dia} ${meses[parseInt(mes) - 1]} ${ano}`;
-          });
-          const scores = sessoesFiltradas.map(s => s.pontos || 0);
-          const distancias = sessoesFiltradas.map(s => s.maiorDistancia || 0);
-
-          this.chartScore = new Chart(ctxScore, {
-            type: 'line',
-            data: {
-              labels,
-              datasets: [{
-                label: 'Pontuação por Sessão',
-                data: scores,
-                backgroundColor: 'rgba(114, 18, 124, 0.2)',
-                borderColor: 'rgba(114, 18, 124, 1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4
-              }]
-            },
-            options: {
-              responsive: true,
-              plugins: { legend: { display: true } },
-              scales: { y: { beginAtZero: true } }
-            }
-          });
-
-          this.chartDistancia = new Chart(ctxDistancia, {
-            type: 'line',
-            data: {
-              labels,
-              datasets: [{
-                label: 'Distância por Sessão',
-                data: distancias,
-                backgroundColor: 'rgba(44, 7, 78, 0.2)',
-                borderColor: 'rgba(44, 7, 78, 1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4
-              }]
-            },
-            options: {
-              responsive: true,
-              plugins: { legend: { display: true } },
-              scales: { 
-                y: { beginAtZero: true } }
-            }
-          });
-        } else {
+        if (!snapshot.exists()) {
           console.log("Nenhum dado de sessão encontrado para o paciente.");
+          return;
         }
+
+        const sessoes = Object.entries(snapshot.val())
+          .map(([id, dados]) => ({ id, ...dados }))
+          .sort((a, b) => new Date(a.data) - new Date(b.data));
+
+        this.todasSessoes = sessoes;
+        this.maxPontos = Math.max(...sessoes.map((s) => s.pontos || 0));
+        this.maxDistancia = Math.round(Math.max(...sessoes.map((s) => s.maiorDistancia || 0))) + ' UA';
+
+        const sessoesFiltradas = sessoes.length > 5 ? sessoes.slice(-5) : sessoes;
+        const labels = this.formatarDatas(sessoesFiltradas);
+        const scores = sessoesFiltradas.map((s) => s.pontos || 0);
+        const distancias = sessoesFiltradas.map((s) => s.maiorDistancia || 0);
+
+        this.chartScore = this.criarGrafico(
+          ctxScore,
+          labels,
+          scores,
+          "Pontuação por Sessão",
+          "rgba(114, 18, 124, 0.2)",
+          "rgba(114, 18, 124, 1)"
+        );
+
+        this.chartDistancia = this.criarGrafico(
+          ctxDistancia,
+          labels,
+          distancias,
+          "Distância por Sessão",
+          "rgba(44, 7, 78, 0.2)",
+          "rgba(44, 7, 78, 1)"
+        );
       } catch (error) {
         console.error("Erro ao buscar sessões:", error);
       }
     },
-    abrirFullscreen(tipo) {
-      this.fullscreenGrafico = tipo;
-      this.$nextTick(() => {
 
-        const sessoes = this.todasSessoes;
-
-        const labels = sessoes.map(s => {
-          if (!s.dataHora) return "Sem data";
-          const [data] = s.dataHora.split(" ");
-          const [ano, mes, dia] = data.split("-");
-
-          const meses = [
-            "jan", "fev", "mar", "abr", "mai", "jun",
-            "jul", "ago", "set", "out", "nov", "dez"
-          ];
-
-          return `${dia} ${meses[parseInt(mes) - 1]} ${ano}`;
-        });
-
-        const scores = sessoes.map(s => s.pontos || 0);
-        const distancias = sessoes.map(s => s.maiorDistancia || 0);
-
-        const data = tipo === 'graficoScore' ? scores : distancias;
-        const label = tipo === 'graficoScore' ? 'Pontuação por Sessão' : 'Distância por Sessão';
-
-        const background = tipo === 'graficoScore'
-          ? 'rgba(114, 18, 124, 0.2)'
-          : 'rgba(44, 7, 78, 0.2)';
-
-        const border = tipo === 'graficoScore'
-          ? 'rgba(114, 18, 124, 1)'
-          : 'rgba(44, 7, 78, 1)';
-
-        const ctx = document.getElementById(tipo + '_fullscreen');
-
-        new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels,
-            datasets: [{
+    criarGrafico(ctx, labels, data, label, background, border) {
+      return new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
               label,
               data,
               backgroundColor: background,
@@ -331,17 +278,56 @@ export default {
               borderWidth: 2,
               fill: true,
               tension: 0.4
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: true } },
-            scales: {
-              y: { beginAtZero: true }
             }
-          }
-        });
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: { legend: { display: true } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    },
+
+    formatarDatas(sessoes) {
+      const meses = [
+        "jan", "fev", "mar", "abr", "mai", "jun",
+        "jul", "ago", "set", "out", "nov", "dez"
+      ];
+
+      return sessoes.map((s) => {
+        if (!s.dataHora) return "Sem data";
+        const [data] = s.dataHora.split(" ");
+        const [ano, mes, dia] = data.split("-");
+        return `${dia} ${meses[parseInt(mes) - 1]} ${ano}`;
+      });
+    },
+
+    abrirFullscreen(tipo) {
+      this.fullscreenGrafico = tipo;
+
+      this.$nextTick(() => {
+        const labels = this.formatarDatas(this.todasSessoes);
+        const scores = this.todasSessoes.map((s) => s.pontos || 0);
+        const distancias = this.todasSessoes.map((s) => s.maiorDistancia || 0);
+
+        const isScore = tipo === "graficoScore";
+        const data = isScore ? scores : distancias;
+        const label = isScore ? "Pontuação por Sessão" : "Distância por Sessão";
+
+        const background = isScore
+          ? "rgba(114, 18, 124, 0.2)"
+          : "rgba(44, 7, 78, 0.2)";
+
+        const border = isScore
+          ? "rgba(114, 18, 124, 1)"
+          : "rgba(44, 7, 78, 1)";
+
+        const ctx = document.getElementById(`${tipo}_fullscreen`);
+        ctx.style.width = "90vw";
+        ctx.style.height = "85vh";
+        this.criarGrafico(ctx, labels, data, label, background, border);
       });
     },
 
