@@ -1,13 +1,17 @@
 <template>
   <div class="container">
     <div class="container-form">
-      <div id="message">{{ message }}</div>
+      <div class="erro-login" v-if="message">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>{{ message }}</span>
+      </div>
+
       <h1>LOGIN SIGHGAME</h1>
       <h3>Jogo Para Reabilitação Respiratória Infantil</h3>
 
       <form @submit.prevent="enviarDadosLogin">
-        <input type="text" v-model="matricula" placeholder="Email" required />
-        <input type="password" v-model="senha" placeholder="Senha" required />
+        <input type="text" v-model="matricula" autocomplete="off" name="user_field" placeholder="Email" required />
+        <input type="password" v-model="senha" autocomplete="new-password" name="access_key" placeholder="Senha" required />
         <button type="submit">ENTRAR</button>
       </form>
     </div>
@@ -84,6 +88,25 @@ export default {
   justify-content: center;
   align-items: center;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.erro-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ff0000;
+  border: 0.1rem solid #ff0000;
+  border-radius: 1rem;
+  background-color: #ff4d4da1;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  gap: 1rem;
+}
+
+
+.erro-login i {
+  font-size: 18px;
 }
 
 .container-form {
